@@ -1,0 +1,100 @@
+{
+  "type": "object",
+  "properties": {
+    "summary": {
+      "type": "string",
+      "description": "1-2 sentence summary of what was changed and overall code quality"
+    },
+    "production_readiness": {
+      "type": "string",
+      "description": "1-3 sentences: is this MR safe to merge to production? What must be fixed before merge vs what can be addressed later?"
+    },
+    "verdict": {
+      "type": "string",
+      "enum": ["LGTM", "Needs attention", "Blocking issues"]
+    },
+    "agent_summaries": {
+      "type": "object",
+      "description": "One 1-2 sentence summary per review sub-agent, keyed by the agent's role in snake_case (e.g. security, performance, ticket_alignment). Include one key for EVERY sub-agent in the configured roster — the roster is defined in review-agents.json, not fixed here.",
+      "additionalProperties": { "type": "string" }
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "severity": {
+            "type": "string",
+            "enum": ["critical", "warning", "suggestion"]
+          },
+          "file": {
+            "type": "string",
+            "description": "Relative file path from repo root"
+          },
+          "line": {
+            "type": "integer",
+            "description": "Line number in the NEW version of the file (must be a line that was changed in this MR)"
+          },
+          "title": {
+            "type": "string",
+            "description": "Short one-line title of the finding"
+          },
+          "message": {
+            "type": "string",
+            "description": "Detailed description of the issue"
+          },
+          "fix": {
+            "type": "string",
+            "description": "Concrete fix recommendation, can include code snippet"
+          }
+        },
+        "required": ["severity", "file", "line", "title", "message"]
+      }
+    },
+    "resolved_findings": {
+      "type": "array",
+      "description": "Discussion IDs from existing_threads.json where the issue has been fixed in current code",
+      "items": {
+        "type": "string",
+        "description": "GitLab discussion ID to resolve"
+      }
+    },
+    "thread_replies": {
+      "type": "array",
+      "description": "Replies to unresolved threads where a developer commented and the bot has not responded yet",
+      "items": {
+        "type": "object",
+        "properties": {
+          "discussion_id": {
+            "type": "string",
+            "description": "GitLab discussion ID to reply to"
+          },
+          "body": {
+            "type": "string",
+            "description": "Reply message body (markdown)"
+          }
+        },
+        "required": ["discussion_id", "body"]
+      }
+    },
+    "general_replies": {
+      "type": "array",
+      "description": "Replies to standalone developer MR notes (not in any thread). Post as new MR note mentioning the author.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "note_id": {
+            "type": "integer",
+            "description": "ID of the human note being replied to (from human_notes.json) — required for retry dedup (<!-- reply-to: ID --> marker)"
+          },
+          "body": {
+            "type": "string",
+            "description": "Reply body (markdown). Start with @username to mention the author. Quote the original comment with > prefix for context."
+          }
+        },
+        "required": ["note_id", "body"]
+      }
+    }
+  },
+  "required": ["summary", "production_readiness", "verdict", "agent_summaries", "findings", "resolved_findings", "thread_replies", "general_replies"]
+}

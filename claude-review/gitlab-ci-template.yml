@@ -1,0 +1,48 @@
+# Claude Code Review — includable GitLab CI job.
+#
+# Add to your .gitlab-ci.yml:
+#
+#   include:
+#     - local: '/claude-review/gitlab-ci-template.yml'
+#
+#   stages:
+#     - code-review     # this stage must exist in your pipeline
+#
+# Required CI/CD variables:
+#   ANTHROPIC_API_KEY     Anthropic API key
+#   GITLAB_ACCESS_TOKEN   Project Access Token with api scope (posts MR comments)
+#
+# Optional CI/CD variables:
+#   JIRA_API_TOKEN        Jira API token — without it the review skips with a comment
+#   JIRA_USERNAME         Jira account email (required if JIRA_API_TOKEN is set)
+#   JIRA_HOST             Jira hostname (default: xsolla.atlassian.net)
+#   CLAUDE_MODEL          Model for orchestrator and sub-agents (default: claude-sonnet-4-6)
+#   DIFF_EXCLUDES         git pathspecs excluded from the diff (default: :!vendor/)
+
+claude-review:
+  stage: code-review
+  image: $CLAUDE_REVIEW_IMAGE
+  needs: []
+  # Add `tags:` here if your runners require them.
+  rules:
+    # Release-candidate branches are skipped — drop these two rules if your
+    # project has no such convention.
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_SOURCE_BRANCH_NAME =~ /^rc-/'
+      when: never
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME =~ /^rc-/'
+      when: never
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+  allow_failure: true
+  timeout: 30m
+  variables:
+    GIT_STRATEGY: fetch
+    # Deep enough to reach the merge base with the target branch
+    GIT_DEPTH: 200
+    # Image built from claude-review/Dockerfile — set this to your own registry
+    CLAUDE_REVIEW_IMAGE: $CI_REGISTRY_IMAGE/claude-review:latest
+    # Where this directory lives in the consuming repo
+    CLAUDE_REVIEW_DIR: claude-review
+  before_script:
+    - git fetch origin "$CI_MERGE_REQUEST_TARGET_BRANCH_NAME:refs/remotes/origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME"
+  script:
+    - bash "$CLAUDE_REVIEW_DIR/run-review.sh"
