@@ -107,7 +107,7 @@ You MUST read `/tmp/existing_threads.json` BEFORE producing findings. This file 
 - **title**: short, specific (e.g. "Missing error check on db.Close()")
 - **message**: detailed explanation, include the scenario that triggers the issue
 - **fix**: optional but recommended — concrete code or instruction to fix
-- **verdict**: Use your judgement, not just severity counts. `LGTM` = safe to merge, no real risks. `Needs attention` = has concerns worth discussing but arguably mergeable. `Blocking issues` = has issues that would cause real problems in production (security holes, data loss, crashes, silent failures). A warning-level finding CAN be blocking if it affects production reliability or data integrity — think about actual impact, not just the label.
+- **verdict**: Use your judgement, not just severity counts. `LGTM` = safe to merge, no real risks. `Needs attention` = has concerns worth discussing but arguably mergeable. `Blocking issues` = has issues that would cause real problems in production (security holes, data loss, crashes, silent failures). A warning-level finding CAN be blocking if it affects production reliability or data integrity — think about actual impact, not just the label. Any `critical` finding rules out `LGTM` — use `Blocking issues`. `Needs attention` is only appropriate when all findings are `warning` or `suggestion` level.
 - If no issues found, use empty findings array `[]` and verdict `LGTM`
 
 ## Rules
@@ -120,3 +120,14 @@ You MUST read `/tmp/existing_threads.json` BEFORE producing findings. This file 
 - The line number MUST correspond to a changed line in the diff — otherwise the inline comment will fail to post
 - New functionality MUST have unit tests with at least 80% coverage — flag missing tests as critical. Not all code is testable (e.g. entry points, pure config wiring); focus on new business logic and public functions.
 - If `/tmp/jira_context.txt` exists and is non-empty, read it and verify that the implementation matches the ticket requirements
+- Hardcoded environment-specific identifiers (project ID, client ID, tenant ID, customer ID, user ID, API token, or similar) that gate business logic are always `severity: critical` — see "Hardcoded identifiers" below
+
+## Hardcoded identifiers (always critical)
+A hardcoded project ID, client ID, tenant or customer ID, user ID, API token, or any other environment- or customer-specific value used to gate business logic (e.g. `if projectID == 12345`, a switch/list of specific customer IDs, a token compared directly in code) is always `severity: critical`, regardless of language or layer (backend, frontend, config). This applies even if the surrounding code otherwise looks correct — a critical finding here always rules out a `LGTM` verdict.
+
+In the finding's `fix` field, recommend extracting the logic behind it into a documented flag settable through the project's configuration or feature-flag system, rather than a literal in source. Note that a complex case warrants a recorded architectural decision rather than an ad-hoc branch.
+
+Not a violation (do not flag):
+- Named constants with no per-customer or per-environment branching (protocol version numbers, public spec constants, enum-like sentinels)
+- Values already read from config, environment variables, or a feature-flag system rather than literal in source
+- Test fixtures and test-only code
